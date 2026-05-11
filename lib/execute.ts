@@ -21,84 +21,12 @@ import { runCommand } from './spawn-process.ts'
  * out immediately instead of timing out after several minutes.
  */
 let shouldBeStopped = false
-let stopSignal: Promise<void> = new Promise(() => {})
-let resolveStop: () => void = () => {}
 
 export const stop: () => Promise<void> = async () => {
   shouldBeStopped = true
-  resolveStop()
 }
 
 type SheetsList = Record<number, { name: string, featureCount: number }>
-
-type PendingFinalization = {
-  promise: Promise<{ ok: true, journal: any } | { ok: false, error: Error }>
-  datasetId: string
-  datasetTitle: string
-}
-
-let nbFinalize = 0
-
-/**
- * Starts listening for the `finalize-end` journal event of a dataset without blocking.
- *
- * `ws.waitForJournal` is invoked synchronously so the WebSocket subscription is set
- * up immediately after the upload — this keeps the race window between "event emitted
- * by the server" and "listener attached on the client" down to a single roundtrip,
- * matching the behaviour of the original sequential flow. The returned promise never
- * rejects: failures are converted into a warning log and an `{ ok: false }` result so
- * one bad finalization cannot abort `Promise.allSettled` over the whole batch. The
- * wait also races against the module-level `stopSignal`, so a `stop()` triggers an
- * immediate bail-out without waiting for the journal timeout.
- *
- * @param ws                    Data Fair WebSocket client used to receive journal events.
- * @param log                   Log system displayed in the user interface.
- * @param datasetId             Id of the dataset whose finalization should be awaited.
- * @param datasetTitle          Human-readable dataset title, used in log messages.
- * @param opts.successMessage   Message logged when the finalization succeeds.
- * @param opts.checkDraft       When true, a draft state on the journal triggers a schema-
- *                              incompatibility warning instead of the success message
- *                              (used by update flows).
- * @param progressInfo.name     Name of the corresponding task log
- * @param progressInfo.total    Total number of pending datasets
- * @returns A `PendingFinalization` whose `promise` settles once the event arrives,
- *          the run is stopped, the wait times out, or fails — never rejects.
- */
-const trackFinalization = (
-  ws: SpreadsheetProcessingContext['ws'],
-  log: SpreadsheetProcessingContext['log'],
-  datasetId: string,
-  datasetTitle: string,
-  opts: { successMessage: string, checkDraft?: boolean },
-  progressInfo: { name: string, total: number }
-): PendingFinalization => {
-  const journalPromise = ws.waitForJournal(datasetId, 'finalize-end')
-    .then(journal => ({ kind: 'event' as const, journal }))
-  const stopPromise = stopSignal.then(() => ({ kind: 'stopped' as const }))
-
-  const promise = Promise.race([journalPromise, stopPromise])
-    .then(async (result) => {
-      if (result.kind === 'stopped') {
-        return { ok: false as const, error: new Error('stopped') }
-      }
-      const journal: any = result.journal
-      if (opts.checkDraft && (journal.draft !== undefined || journal.draft)) {
-        await log.warning(`Le schéma du jeu de données "${datasetTitle}" n'est pas compatible avec la couche . Le jeu est passé en mode brouillon, à vous de le valider ou non.`)
-      } else {
-        await log.info(`Le jeu de données "${datasetTitle}" ${opts.successMessage}`)
-      }
-      return { ok: true as const, journal }
-    })
-    .catch(async (error: Error) => {
-      await log.warning(`Le jeu de données "${datasetTitle}" n'a pas pu être finalisé (${error.message}), vous pouvez relancer son traitement.`)
-      return { ok: false as const, error }
-    })
-    .finally(async () => {
-      nbFinalize += 1
-      await log.progress(progressInfo.name, nbFinalize, progressInfo.total)
-    })
-  return { promise, datasetId, datasetTitle }
-}
 
 /**
  * Input function, allows data processing to begin
@@ -106,37 +34,28 @@ const trackFinalization = (
  */
 export const run: RunFunction<ProcessingConfig> = async (context) => {
   shouldBeStopped = false
-  stopSignal = new Promise<void>(resolve => { resolveStop = resolve })
 
-  try {
-    // Retrieving the contextual elements necessary for processing
-    const { processingConfig, patchConfig } = context
-    const tmpFile = await download(context)
+  // Retrieving the contextual elements necessary for processing
+  const { processingConfig, patchConfig } = context
+  const tmpFile = await download(context)
 
-    if (shouldBeStopped) return
-    if (!tmpFile) return
-    const sheetsList = await extraction(context, tmpFile)
+  if (shouldBeStopped) return
+  if (!tmpFile) return
+  const sheetsList = await extraction(context, tmpFile)
 
-    if (shouldBeStopped) return
-    if (!sheetsList) return
+  if (shouldBeStopped) return
+  if (!sheetsList) return
 
-    if (processingConfig.datasetMode === 'create') {
-      const updateConfig = await createDatasets(context, sheetsList, tmpFile)
+  if (processingConfig.datasetMode === 'create') {
+    const updateConfig = await createDatasets(context, sheetsList, tmpFile)
 
-      // The lib-common-types signature only allows `dataset` (singular), but the worker's
-      // patchConfig is a generic Object.assign on the config — `datasets` is supported at runtime.
-      if (updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: updateConfig } as any)
-    } else if (processingConfig.datasetMode === 'update') {
-      await updateDatasets(context, sheetsList, tmpFile)
-    } else {
-      await patchConfig({ datasetMode: 'create', dataset: { prefix: '' } })
-    }
-  } finally {
-    // Settle the stop signal so any continuation chained on it (the `stopSignal.then(...)`
-    // branches inside `trackFinalization`) is released. At this point all the relevant
-    // `Promise.race` calls have already resolved via the journal branch, so this late
-    // resolution is a no-op behaviour-wise — it only frees handlers.
-    resolveStop()
+    // The lib-common-types signature only allows `dataset` (singular), but the worker's
+    // patchConfig is a generic Object.assign on the config — `datasets` is supported at runtime.
+    if (updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: updateConfig } as any)
+  } else if (processingConfig.datasetMode === 'update') {
+    await updateDatasets(context, sheetsList, tmpFile)
+  } else {
+    await patchConfig({ datasetMode: 'create', dataset: { prefix: '' } })
   }
 }
 
@@ -296,8 +215,6 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log,
 
   const idsSheetsCreate = []
   const updateConfig = []
-  const pendingFinalizations: PendingFinalization[] = []
-  const progressName = 'En attente de la finalisation de la création des jeux de données'
 
   // Checking the availability of the sheets
   for (const idSheet of idsSheets) {
@@ -337,23 +254,11 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log,
     })).data
     await log.info(`   Jeu de données créé, id="${dataset.id}", titre="${dataset.title}"`)
 
-    pendingFinalizations.push(trackFinalization(ws, log, dataset.id, dataset.title, { successMessage: 'a été finalisé' },
-      { name: progressName, total: idsSheetsCreate.length }))
-
     const datasetObject = { id: dataset.id, href: dataset.href, title: dataset.title }
     const updateObject = { dataset: datasetObject, idSheet }
     updateConfig.push(updateObject)
 
     await log.info('')
-  }
-
-  if (pendingFinalizations.length > 0) {
-    await log.step('Finalisation des jeux de données')
-
-    await log.task(progressName)
-    await log.progress(progressName, nbFinalize, idsSheetsCreate.length)
-
-    await Promise.allSettled(pendingFinalizations.map(p => p.promise))
   }
 
   return updateConfig
@@ -414,9 +319,6 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
     datasetsUpdate.push(update)
   }
 
-  const pendingFinalizations: PendingFinalization[] = []
-  const progressName = 'En attente de la finalisation de la mise à jour des jeux de données'
-
   // We process each dataset to be updated
   for (const update of datasetsUpdate) {
     if (shouldBeStopped) return
@@ -451,20 +353,6 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
       headers: { ...formData.getHeaders(), 'content-length': contentLength }
     })
 
-    // We are certain of the ID and title definitions with the previous check.
-    pendingFinalizations.push(trackFinalization(ws, log, dataset.id!, dataset.title!, { successMessage: 'a été mis à jour', checkDraft: true },
-      { name: progressName, total: datasetsUpdate.length }
-    ))
-
     await log.info('')
-  }
-
-  if (pendingFinalizations.length > 0) {
-    await log.step('Finalisation des mises à jour')
-
-    await log.task(progressName)
-    await log.progress(progressName, 0, datasetsUpdate.length)
-
-    await Promise.allSettled(pendingFinalizations.map(p => p.promise))
   }
 }
