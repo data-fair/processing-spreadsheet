@@ -249,7 +249,7 @@ const extraction = async ({ log }: SpreadsheetProcessingContext, tmpFile : strin
  * @param tmpFile           Full path of the file to be processed
  * @returns   A list of objects associating sheets and datasets, or nothing at all to stop the program
  */
-const createDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
+const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log, ws } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
   // Narrow the union type to the create-mode branch (caller guarantees datasetMode === 'create').
   const processingConfig = rawConfig as CreateDatasets & Parameters
   await log.step('Construction des jeux de données')
@@ -314,7 +314,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
 
     await log.info(`Création du jeu de données pour la feuille ${idSheet} - ${sheetsList[idSheet].name}`)
 
-    const tmpFileXLSX = await createTmpFile(dir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
+    const tmpFileXLSX = await createTmpFile(tmpDir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
     if (!tmpFileXLSX) return
 
     const formData = new FormData()
