@@ -319,6 +319,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
 
     const formData = new FormData()
     formData.append('title', `${processingConfig.dataset.prefix} - ${sheetsList[idSheet].name}`)
+    formData.append('origin', processingConfig.url)
     formData.append('file', await fs.createReadStream(tmpFileXLSX), { filename: path.parse(tmpFileXLSX).base })
     const getLength = util.promisify(formData.getLength.bind(formData))
     const contentLength = await getLength()

@@ -29,7 +29,7 @@ describe('Geopackage processing', () => {
         datasetMode: 'list',
         url: 'https://www.data.gouv.fr/api/1/datasets/r/aa7a0f1c-89e3-4d40-af94-6f226202ada3',
       },
-      tmpDir: 'test-data/'
+      tmpDir: 'test-data.test/'
     }, config, false)
 
     await xlsxPlugin.run(context)
@@ -46,7 +46,7 @@ describe('Geopackage processing', () => {
         url: 'https://www.data.gouv.fr/api/1/datasets/r/aa7a0f1c-89e3-4d40-af94-6f226202ada3',
         listIdsSheets: '3'
       },
-      tmpDir: 'test-data/'
+      tmpDir: 'test-data.test/'
     }, config, false)
 
     await xlsxPlugin.run(context)
