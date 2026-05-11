@@ -338,6 +338,7 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
     if (!tmpFileXLSX) return
 
     formData.append('file', await fs.createReadStream(tmpFileXLSX), { filename: path.parse(tmpFileXLSX).base })
+    formData.append('origin', processingConfig.url)
     const getLength = util.promisify(formData.getLength.bind(formData))
     const contentLength = await getLength()
     await log.info(`Chargement de ${formatBytes(contentLength)}`)
