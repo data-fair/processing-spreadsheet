@@ -40,17 +40,21 @@ describe('Geopackage processing', () => {
       pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
-        dataset: {
-          prefix: 'Test-xlsx',
-        },
         url: 'https://www.data.gouv.fr/api/1/datasets/r/aa7a0f1c-89e3-4d40-af94-6f226202ada3',
-        listIdsSheets: '3'
+        sheets: [
+          {
+            add: true,
+            nb: 3,
+            name: 'fra',
+            lines: 539,
+            titleEditable: 'test-xlsx-3'
+          }
+        ]
       },
       tmpDir: 'test-data.test/'
     }, config, false)
 
     await xlsxPlugin.run(context)
     assert.equal(context.processingConfig.datasetMode, 'update')
-    assert.equal(context.processingConfig.dataset.prefix, 'Test-xlsx')
   })
 })
