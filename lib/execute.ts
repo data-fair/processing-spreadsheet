@@ -8,17 +8,13 @@ import path from 'path'
 import Excel from 'exceljs'
 import FormData from 'form-data'
 
-import type { SpreadsheetProcessingContext } from './context.ts'
+import type { SheetsTab, SpreadsheetProcessingContext } from './context.ts'
 import { fetchHTTP } from './fetch.ts'
 import { createTmpFile } from './tmp-file.ts'
 import { runCommand } from './spawn-process.ts'
 
 /**
  * Allows for a requested program shutdown to be scheduled.
- *
- * `stopSignal` is a promise that resolves the moment `stop()` is called. Long-running
- * waiters (typically `ws.waitForJournal` in phase 2) race against it so they can bail
- * out immediately instead of timing out after several minutes.
  */
 let shouldBeStopped = false
 
@@ -47,15 +43,24 @@ export const run: RunFunction<ProcessingConfig> = async (context) => {
   if (!sheetsList) return
 
   if (processingConfig.datasetMode === 'create') {
-    const updateConfig = await createDatasets(context, sheetsList, tmpFile)
+    const result = await createDatasets(context, sheetsList, tmpFile)
 
     // The lib-common-types signature only allows `dataset` (singular), but the worker's
     // patchConfig is a generic Object.assign on the config — `datasets` is supported at runtime.
-    if (updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: updateConfig } as any)
+    if (result?.updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: result.updateConfig, sheets: result.sheetsTab } as any)
   } else if (processingConfig.datasetMode === 'update') {
     await updateDatasets(context, sheetsList, tmpFile)
   } else {
-    await patchConfig({ datasetMode: 'create', dataset: { prefix: '' } })
+    const createConfig: SheetsTab[] = Object.keys(sheetsList).map(idSheet => ({
+      add: false,
+      nb: Number(idSheet),
+      name: sheetsList[Number(idSheet)].name,
+      lines: sheetsList[Number(idSheet)].featureCount,
+      titleEditable: '',
+      titleReadOnly: ''
+    }))
+
+    await patchConfig({ datasetMode: 'create', haveList: true, sheets: createConfig, dataset: {} } as any)
   }
 }
 
@@ -163,81 +168,64 @@ const extraction = async ({ log }: SpreadsheetProcessingContext, tmpFile : strin
  * @param axios             Server for API requests
  * @param tmpDir            Directory where to download temporary files
  * @param log               Log system that is displayed on the user interface
- * @param ws                Data Fair's Websocket allows retrieving the dataset response.
  * @param sheetsList   Dictionary containing the structure of the file's sheets (id: {name, fields, featureCount})
  * @param tmpFile           Full path of the file to be processed
  * @returns   A list of objects associating sheets and datasets, or nothing at all to stop the program
  */
-const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log, ws } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
+const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
   // Narrow the union type to the create-mode branch (caller guarantees datasetMode === 'create').
   const processingConfig = rawConfig as CreateDatasets & Parameters
   await log.step('Construction des jeux de données')
 
-  let idsSheets: number[] = []
+  const sheetsTab: SheetsTab[] = []
 
-  // If we want to add all the sheets, we add all the identifiers to the list.
-  if (processingConfig.addAllSheets) {
-    idsSheets = Object.keys(sheetsList).map(sheet => Number(sheet))
-  } else {
-    processingConfig.listIdsSheets = processingConfig.listIdsSheets ? processingConfig.listIdsSheets.replaceAll(' ', '') : ''
-
-    const listParts = processingConfig.listIdsSheets.split(',')
-
-    for (const part of listParts) {
-      const idSheet = Number(part)
-
-      if (idSheet && idSheet > 0) {
-        idsSheets.push(idSheet)
-      } else {
-        const interval = part.split('-')
-
-        if (interval.length === 2) {
-          const start = Number(interval[0])
-          const end = Number(interval[1])
-
-          if (start && start > 0 && end && end >= start) {
-            for (let id = start; id <= end; id++) {
-              idsSheets.push(id)
-            }
-          }
-        }
+  for (let sheet of processingConfig.sheets as SheetsTab[]) {
+    if (sheet.add || processingConfig.addAllSheets) {
+      sheet = {
+        ...sheet,
+        title: sheet.titleEditable ?? (sheet.name ?? 'untitled'),
+        titleReadOnly: sheet.titleEditable ?? (sheet.name ?? 'untitled')
       }
+      sheetsTab.push(sheet)
     }
   }
 
   // If there are no sheets to extract, we stop here to simplify the display of logs on the interface.
-  if (idsSheets.length <= 0) {
+  if (sheetsTab.length <= 0) {
     await log.warning('Pas de feuilles renseignées')
     return
   }
 
-  await log.info(`Extraction des feuilles ${idsSheets}`)
-
-  const idsSheetsCreate = []
+  const sheetsTabCreate: SheetsTab[] = []
   const updateConfig = []
 
-  // Checking the availability of the sheets
-  for (const idSheet of idsSheets) {
-    if (!(idSheet in sheetsList)) {
-      await log.warning(`La feuille ${idSheet} n'est pas présente dans les feuilles disponibles`)
+  // SECURITY (normally not necessary) : Checking the availability of the sheets (in the event that the download URL has been changed accidentally)
+  for (const sheet of sheetsTab) {
+    const idSheet = sheet.nb
+    const nameSheet = sheet.name
+    if (!(idSheet in sheetsList && sheetsList[idSheet].name === nameSheet)) {
+      await log.warning(`La feuille ${idSheet} - ${nameSheet} n'est pas présente dans les couches disponibles`)
     } else {
-      idsSheetsCreate.push(idSheet)
+      sheetsTabCreate.push(sheet)
     }
   }
-  await log.info('')
 
-  for (const idSheet of idsSheetsCreate) {
+  await log.info(`Extraction des feuilles ${sheetsTabCreate.map(sheet => (`${sheet.nb} - ${sheet.name}`)).join(', ')}`)
+
+  for (const sheet of sheetsTabCreate) {
     if (shouldBeStopped) return
+
+    const idSheet = sheet.nb
 
     await log.info(`Création du jeu de données pour la feuille ${idSheet} - ${sheetsList[idSheet].name}`)
 
-    const tmpFileXLSX = await createTmpFile(tmpDir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
-    if (!tmpFileXLSX) return
+    const tmpFileCSV = await createTmpFile(tmpDir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
+    if (!tmpFileCSV) return
 
     const formData = new FormData()
-    formData.append('title', `${processingConfig.dataset.prefix} - ${sheetsList[idSheet].name}`)
+    formData.append('title', sheet.title)
     formData.append('origin', processingConfig.url)
-    formData.append('file', await fs.createReadStream(tmpFileXLSX), { filename: path.parse(tmpFileXLSX).base })
+    formData.append('file', await fs.createReadStream(tmpFileCSV), { filename: path.parse(tmpFileCSV).base })
     const getLength = util.promisify(formData.getLength.bind(formData))
     const contentLength = await getLength()
     await log.info(`Chargement de ${formatBytes(contentLength)}`)
@@ -255,13 +243,13 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log,
     await log.info(`   Jeu de données créé, id="${dataset.id}", titre="${dataset.title}"`)
 
     const datasetObject = { id: dataset.id, href: dataset.href, title: dataset.title }
-    const updateObject = { dataset: datasetObject, idSheet }
+    const updateObject = { dataset: datasetObject, sheet: { nb: sheet.nb, name: sheet.name } }
     updateConfig.push(updateObject)
 
     await log.info('')
   }
 
-  return updateConfig
+  return { sheetsTab, updateConfig }
 }
 
 /**
@@ -270,12 +258,11 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log,
  * @param axios             Server for API requests
  * @param tmpDir            Directory where to download temporary files
  * @param log               Log system that is displayed on the user interface
- * @param ws                Data Fair's Websocket allows retrieving the dataset response.
  * @param sheetsList   Dictionary containing the structure of the file's sheets (id: {name, fields, featureCount})
  * @param tmpFile           Full path of the file to be processed
  * @returns   Returns nothing, used to stop the program
  */
-const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
+const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
   // Narrow the union type to the update-mode branch (caller guarantees datasetMode === 'update').
   const processingConfig = rawConfig as UpdateDatasets
   await log.step('Mise à jour des jeux de données')
@@ -291,7 +278,7 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
   // ---------------------------------
 
   // We add size=10000 to ensure that all datasets are retrieved (12 by default)
-  const datasets = (await axios.get<{ results: { id: string }[] }>('api/v1/datasets/?size=10000&file=true')).data.results
+  const datasets : { id: string }[] = (await axios.get<{ results: { id: string }[] }>('api/v1/datasets/?size=10000&file=true')).data.results
   const datasetsIds = new Set<string>(datasets.map(d => d.id))
 
   const datasetsUpdate = []
@@ -303,9 +290,9 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
       continue
     }
 
-    // Check if the sheet is available
-    if (!(update.idSheet in sheetsList)) {
-      await log.warning(`La feuille ${update.idSheet} n'est pas présente dans les feuilles disponibles`)
+    // SECURITY (normally not necessary) : Checking the availability of the sheets
+    if (!(update.sheet.nb! in sheetsList && update.sheet.name! === sheetsList[update.sheet.nb!].name)) {
+      await log.warning(`La feuille ${update.sheet.nb} - ${update.sheet.name} n'est pas présente dans les feuilles disponibles`)
       await log.info('')
       continue
     }
@@ -324,20 +311,21 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log, ws
     if (shouldBeStopped) return
 
     const dataset = update.dataset
-    const idSheet = update.idSheet
+    const idSheet = update.sheet.nb!
+    const sheetName = update.sheet.name!
     const formData = new FormData()
 
-    await log.info(`Mise à jour du jeu ${dataset.title} avec la feuille ${idSheet}`)
+    await log.info(`Mise à jour du jeu ${dataset.title} avec la feuille ${idSheet} - ${sheetName}`)
 
     if (shouldBeStopped) return
 
     if (update.forceUpdate) await log.info('Mise à jour forcée du schéma')
 
     // Data update
-    const tmpFileXLSX = await createTmpFile(dir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
-    if (!tmpFileXLSX) return
+    const tmpFileCSV = await createTmpFile(dir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
+    if (!tmpFileCSV) return
 
-    formData.append('file', await fs.createReadStream(tmpFileXLSX), { filename: path.parse(tmpFileXLSX).base })
+    formData.append('file', await fs.createReadStream(tmpFileCSV), { filename: path.parse(tmpFileCSV).base })
     formData.append('origin', processingConfig.url)
     const getLength = util.promisify(formData.getLength.bind(formData))
     const contentLength = await getLength()

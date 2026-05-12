@@ -11,6 +11,15 @@
       "default": {
         "datasetMode": "list"
       },
+      "properties": {
+        "haveList": {
+          "type": "boolean",
+          "default": false,
+          "layout": {
+            "if": "false"
+          }
+        }
+      },
       "oneOf": [
         {
           "title": "List sheets",
@@ -20,6 +29,23 @@
               "type": "string",
               "const": "list",
               "title": "Action"
+            },
+            "note": {
+              "type": "object",
+              "layout": {
+                "slots": {
+                  "before": "List the different sheets of your file before you can create or update datasets.",
+                  "x-i18n-before": {
+                    "fr": "Listez les différentes feuilles de votre fichier avant de pouvoir créer des jeux de données ou les mettre à jour.",
+                    "en": "List the different sheets of your file before you can create or update datasets."
+                  },
+                  "after": "**Warning:** if you use a .zip file containing .xlsx files, only the first .xlsx file found will be used.",
+                  "x-i18n-after": {
+                    "fr": "**Attention :** si vous utiliser un fichier .zip contenant des fichiers .xlsx, seul le premier .xlsx trouvé sera utilisé.",
+                    "en": "**Warning:** if you use a .zip file containing .xlsx files, only the first .xlsx file found will be used."
+                  }
+                }
+              }
             }
           }
         },
@@ -37,19 +63,24 @@
             },
             "dataset": {
               "type": "object",
-              "required": [
-                "prefix"
-              ],
               "properties": {
-                "prefix": {
-                  "type": "string",
-                  "title": "Datasets prefix",
-                  "x-i18n-title": { "fr": "Préfixe des noms des jeux de données", "en": "Datasets name prefix" },
-                  "description": "Dataset titles are built from this prefix and the matching sheet name.",
-                  "x-i18n-description": { "fr": "Les titres des jeux de données sont construits avec ce préfixe et le nom de la feuille correspondante.", "en": "Dataset titles are built from this prefix and the matching sheet name." }
+                "note": {
+                  "type": "object",
+                  "layout": {
+                    "slots": {
+                      "before": "Select the sheets you want to add in the **File Sheets** tab.",
+                      "x-i18n-before": {
+                        "fr": "Sélectionnez les feuilles que vous voulez ajouter dans l'onglet **Feuilles du fichier**.",
+                        "en": "Select the sheets you want to add in the **File Sheets** tab."
+                      }
+                    }
+                  }
                 }
               }
             }
+          },
+          "layout": {
+            "if": "parent.data.haveList"
           }
         },
         {
@@ -64,35 +95,35 @@
             "datasets": {
               "type": "array",
               "title": "Datasets to update",
-              "x-i18n-title": { "fr": "Jeux à mettre à jour", "en": "Datasets to update" },
+              "x-i18n-title": { "fr": "Jeux de données à mettre à jour", "en": "Datasets to update" },
               "layout": {
                 "listEditMode": "inline"
               },
               "items": {
-                "type": "object",
-                "layout": [
-                  {
-                    "children": [
-                      "dataset"
-                    ],
-                    "cols": 5
-                  },
-                  {
-                    "children": [
-                      "idSheet"
-                    ],
-                    "cols": 3
-                  },
-                  {
-                    "children": [
-                      "forceUpdate"
-                    ],
-                    "cols": 3
-                  }
-                ],
+                "type" : "object",
+                  "layout" : [
+                    {
+                      "children": [
+                        "dataset"
+                      ],
+                      "cols": 4
+                    },
+                    {
+                      "children": [
+                        "sheet"
+                      ],
+                      "cols": 4
+                    },
+                    {
+                      "children": [
+                        "forceUpdate"
+                      ],
+                      "cols": 3
+                    }
+                  ],
                 "required": [
                   "dataset",
-                  "idSheet"
+                  "sheet"
                 ],
                 "properties": {
                   "dataset": {
@@ -117,30 +148,259 @@
                     },
                     "layout": {
                       "getItems": {
-                        "url": "${context.dataFairUrl}/api/v1/datasets?q={q}&select=id,title&${context.ownerFilter}&$file=true",
+                        "url": "${context.dataFairUrl}/api/v1/datasets?q={q}&select=id,title&${context.ownerFilter}&${parent.parent.parent.parent.data.editableUpdate === true ? 'rest' : 'file'}=true",
                         "itemsResults": "data.results",
                         "itemTitle": "item.title",
                         "itemKey": "item.id"
                       }
                     }
                   },
-                  "idSheet": {
-                    "type": "integer",
-                    "title": "Sheet number",
-                    "x-i18n-title": { "fr": "Numéro de la feuille", "en": "Sheet number" },
-                    "minimum": 1
+                  "sheet": {
+                    "type": "object",
+                    "title": "Sheet",
+                    "x-i18n-title": {
+                      "fr": "Feuille",
+                      "en": "Sheet"
+                    },
+                    "properties": {
+                      "nb": {
+                        "type": "integer",
+                        "title": "Sheet identifier",
+                        "x-i18n-title": {"fr": "Identifiant de la feuille", "en": "Sheet identifier"}
+                      },
+                      "name": {
+                        "type": "string",
+                        "title": "Sheet name",
+                        "x-i18n-title": {"fr": "Nom de la feuille", "en": "Sheet name"}
+                      }
+                    },
+                    "layout": {
+                      "getItems": {
+                        "expr": "parent.parent.parent.parent.data.sheets || []",
+                        "itemsResults": "data",
+                        "itemTitle": "item.name",
+                        "itemKey": "item.nb"
+                      }
+                    }
                   },
                   "forceUpdate": {
-                    "type": "boolean",
+                    "type" : "boolean",
                     "title": "Force schema update",
                     "x-i18n-title": { "fr": "Forcer la mise à jour du schéma", "en": "Force schema update" }
                   }
                 }
               }
             }
+          },
+          "layout": {
+            "if": "parent.data.haveList"
           }
         }
       ]
+    },
+    {
+      "title" : "File sheets",
+      "x-i18n-title": { "fr": "Feuilles du fichier", "en": "File sheets" },
+      "required": [
+        "sheets"
+      ],
+      "layout": {
+        "readOnlyPropertiesMode": "show"
+      },
+      "properties": {
+        "note": {
+          "type": "object",
+          "layout": {
+            "slots": {
+              "before": "**No sheets detected**",
+              "x-i18n-before": {
+                "fr": "**Aucune feuille détectée**",
+                "en": "**No sheets detected**"
+              }
+            },
+            "if" : "parent.parent.data.haveList !== true"
+          }
+        },
+        "addAllSheets": {
+          "type": "boolean",
+          "title": "Add all the sheets",
+          "x-i18n-title": { "fr": "Ajouter toutes les feuilles", "en": "Add all the sheets" },
+          "layout": {
+            "if": "parent.parent.data.datasetMode === 'create'"
+          }
+        },
+        "tableHeader": {
+          "type": "object",
+          "layout": [
+            {
+              "children": [
+                "add"
+              ],
+              "cols": 1,
+              "if": "parent.parent.parent.data.datasetMode === 'create' && parent.parent.data.addAllSheets !== true"
+            },
+            {
+              "children": [
+                "nb"
+              ],
+              "cols": 1
+            },
+            {
+              "children": [
+                "name"
+              ],
+              "cols": 4
+            },
+            {
+              "children": [
+                "lines"
+              ],
+              "cols": 2
+            },
+            {
+              "children": [
+                "titleEditable",
+                "titleReadOnly"
+              ],
+              "cols": 4
+            }
+          ],
+          "properties": {
+            "add": {
+              "type": "string",
+              "title": "Add",
+              "x-i18n-title": {"fr": "Ajouter", "en": "add"},
+              "readOnly": true
+            },
+            "nb": {
+              "type": "string",
+              "title": "Number",
+              "x-i18n-title": {"fr": "Numéro", "en": "Number"},
+              "readOnly": true
+            },
+            "name": {
+              "type": "string",
+              "title": "Sheet name",
+              "x-i18n-title": {"fr": "Nom de la feuille", "en": "Sheet name"},
+              "readOnly": true
+            },
+            "lines": {
+              "type": "string",
+              "title": "Nombre de lignes",
+              "readOnly": true
+            },
+            "titleEditable": {
+              "type": "string",
+              "title": "Title of the corresponding dataset",
+              "x-i18n-title": {"fr": "Titre du jeu de données correspondant", "en": "Title of the corresponding dataset"},
+              "readOnly": true,
+              "description": "By default, the dataset title corresponds to the sheet name",
+              "x-i18n-description": {
+                "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille",
+                "en": "By default, the dataset title corresponds to the sheet name"
+              },
+              "layout": {
+                "if": "parent.parent.parent.parent.data.datasetMode === 'create'"
+              }
+            },
+            "titleReadOnly": {
+              "type": "string",
+              "title": "Title of the corresponding dataset",
+              "x-i18n-title": {"fr": "Titre du jeu de données correspondant", "en": "Title of the corresponding dataset"},
+              "readOnly": true,
+              "description": "By default, the dataset title corresponds to the sheet name",
+              "x-i18n-description": {
+                "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille",
+                "en": "By default, the dataset title corresponds to the sheet name"
+              },
+              "layout": {
+                "if": "parent.parent.parent.parent.data.datasetMode !== 'create'"
+              }
+            }
+          }
+        },
+        "sheets": {
+          "type": "array",
+          "title": " ",
+          "layout": {
+            "listEditMode": "inline",
+            "listActions": []
+          },
+          "items": {
+            "type": "object",
+            "layout": [
+              {
+                "children": [
+                  "add"
+                ],
+                "cols": 1,
+                "if": "parent.parent.parent.data.datasetMode === 'create' && parent.parent.parent.data.addAllSheets !== true"
+              },
+              {
+                "children": [
+                  "nb"
+                ],
+                "cols": 1
+              },
+              {
+                "children": [
+                  "name"
+                ],
+                "cols": 4
+              },
+              {
+                "children": [
+                  "lines"
+                ],
+                "cols": 2
+              },
+              {
+                "children": [
+                  "titleEditable",
+                  "titleReadOnly"
+                ],
+                "cols": 4
+              }
+            ],
+            "properties": {
+              "add": {
+                "type": "boolean",
+                "title": " "
+              },
+              "nb": {
+                "type": "integer",
+                "readOnly": true,
+                "title": " "
+              },
+              "name": {
+                "type": "string",
+                "readOnly": true,
+                "title": " "
+              },
+              "lines": {
+                "type": "integer",
+                "readOnly": true,
+                "title": " "
+              },
+              "titleEditable": {
+                "type": "string",
+                "title": " ",
+                "layout": {
+                  "if": "parent.parent.parent.parent.data.datasetMode === 'create'"
+                }
+              },
+              "titleReadOnly": {
+                "type": "string",
+                "title": " ",
+                "readOnly": true,
+                "layout": {
+                  "if": "parent.parent.parent.parent.data.datasetMode !== 'create'"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
       "title": "Parameters",
@@ -155,24 +415,6 @@
           "type": "string",
           "description": "Supported protocols are HTTP and HTTPS; supported formats are .zip and .xlsx.",
           "x-i18n-description": { "fr": "Les protocoles supportés sont HTTP et HTTPS, les formats supportés sont .zip et .xlsx.", "en": "Supported protocols are HTTP and HTTPS; supported formats are .zip and .xlsx." }
-        },
-        "addAllSheets": {
-          "type": "boolean",
-          "title": "Add all the sheets",
-          "x-i18n-title": { "fr": "Ajouter toutes les feuilles", "en": "Add all the sheets" },
-          "layout": {
-            "if": "parent.parent.data.datasetMode === 'create'"
-          }
-        },
-        "listIdsSheets": {
-          "type": "string",
-          "title": "Sheets to extract",
-          "x-i18n-title": { "fr": "Feuilles à extraire", "en": "Sheets to extract" },
-          "description": "Separate numbers with commas and intervals with dashes (1,3 for sheets 1 and 3, 1-3 for sheets 1 to 3).",
-          "x-i18n-description": { "fr": "Séparer les nombres par des virgules et les intervalles par des tirets (1,3 pour les feuilles 1 et 3, 1-3 pour les feuilles 1 à 3).", "en": "Separate numbers with commas and intervals with dashes (1,3 for sheets 1 and 3, 1-3 for sheets 1 to 3)." },
-          "layout": {
-            "if": "parent.parent.data.datasetMode === 'create' && parent.data.addAllSheets === false"
-          }
         }
       }
     }
