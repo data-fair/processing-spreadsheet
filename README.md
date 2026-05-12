@@ -25,7 +25,6 @@ For this mode, you only need to enter the URL in the Parameters tab.
 
 | Tab | Field | Description |
 | --- | ----- | ----------- |
-| Datasets | `prefix` | This corresponds to the title of the datasets to be created. The datasets are named according to this prefix and the name of the corresponding sheet |
 | File sheets | `addAllSheets` | Allows you to build datasets directly for all sheets in the file |
 | File sheets - Sheets | `add` | Allows you to build a dataset with the corresponding sheet by checking the box |
 | File sheets - Sheets | `title` | This corresponds to the name you want for your dataset. By default, the title will be the sheet name. |
