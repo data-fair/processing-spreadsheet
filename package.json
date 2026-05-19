@@ -1,6 +1,6 @@
 {
   "name": "@data-fair/processing-spreadsheet",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create datasets from a excel (xlsx) file ",
   "main": "index.ts",
   "type": "module",
