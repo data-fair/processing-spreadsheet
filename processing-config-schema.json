@@ -206,7 +206,7 @@
             "if": "parent.data.sheets && parent.data.sheets.length > 0",
             "children": [
               {
-                "markdown": "*To update the sheets, for example in the case of a new file, run the **List the available sheets** mode again.*",
+                "markdown": "*To update the sheets, for example in the case of a new file, run the **list the available sheets** mode again.*",
                 "x-i18n-markdown": {
                   "fr": "*Pour remettre à jour les feuilles, en cas de nouveau fichier par exemple, exécutez de nouveau le mode **lister les différentes feuilles**.*"
                 }
