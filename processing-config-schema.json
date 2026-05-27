@@ -15,9 +15,7 @@
         "haveList": {
           "type": "boolean",
           "default": false,
-          "layout": {
-            "if": "false"
-          }
+          "layout": "none"
         }
       },
       "oneOf": [
@@ -29,63 +27,52 @@
               "type": "string",
               "const": "list",
               "title": "Action"
-            },
-            "note": {
-              "type": "object",
-              "layout": {
-                "slots": {
-                  "before": "List the different sheets of your file before you can create or update datasets.",
-                  "x-i18n-before": {
-                    "fr": "Listez les différentes feuilles de votre fichier avant de pouvoir créer des jeux de données ou les mettre à jour.",
-                    "en": "List the different sheets of your file before you can create or update datasets."
-                  },
-                  "after": "**Warning:** if you use a .zip file containing .xlsx files, only the first .xlsx file found will be used.",
-                  "x-i18n-after": {
-                    "fr": "**Attention :** si vous utiliser un fichier .zip contenant des fichiers .xlsx, seul le premier .xlsx trouvé sera utilisé.",
-                    "en": "**Warning:** if you use a .zip file containing .xlsx files, only the first .xlsx file found will be used."
-                  }
+            }
+          },
+          "layout": {
+            "children": [
+              "datasetMode",
+              {
+                "markdown": "List the different sheets of your file before you can create or update datasets.",
+                "x-i18n-markdown": {
+                  "fr": "Listez les différentes feuilles de votre fichier avant de pouvoir créer des jeux de données ou les mettre à jour."
+                }
+              },
+              {
+                "markdown": "**Warning:** if you use a .zip file containing .xlsx files, only the first .xlsx file found will be used.",
+                "x-i18n-markdown": {
+                  "fr": "**Attention :** si vous utiliser un fichier .zip contenant des fichiers .xlsx, seul le premier .xlsx trouvé sera utilisé."
                 }
               }
-            }
+            ]
           }
         },
         {
           "title": "Create datasets",
-          "x-i18n-title": { "fr": "Créer des jeux de données", "en": "Create datasets" },
-          "required": [
-            "dataset"
-          ],
+          "x-i18n-title": { "fr": "Créer des jeux de données" },
           "properties": {
             "datasetMode": {
               "type": "string",
               "const": "create",
               "title": "Action"
-            },
-            "dataset": {
-              "type": "object",
-              "properties": {
-                "note": {
-                  "type": "object",
-                  "layout": {
-                    "slots": {
-                      "before": "Select the sheets you want to add in the **File Sheets** tab.",
-                      "x-i18n-before": {
-                        "fr": "Sélectionnez les feuilles que vous voulez ajouter dans l'onglet **Feuilles du fichier**.",
-                        "en": "Select the sheets you want to add in the **File Sheets** tab."
-                      }
-                    }
-                  }
-                }
-              }
             }
           },
           "layout": {
-            "if": "parent.data.haveList"
+            "if": "parent.data.haveList",
+            "children": [
+              "datasetMode",
+              {
+                "markdown": "Select the sheets you want to add in the **File Sheets** tab.",
+                "x-i18n-markdown": {
+                  "fr": "Sélectionnez les feuilles que vous voulez ajouter dans l'onglet **Feuilles du fichier**."
+                }
+              }
+            ]
           }
         },
         {
           "title": "Update datasets",
-          "x-i18n-title": { "fr": "Mettre à jour des jeux de données", "en": "Update datasets" },
+          "x-i18n-title": { "fr": "Mettre à jour des jeux de données" },
           "properties": {
             "datasetMode": {
               "type": "string",
@@ -95,7 +82,7 @@
             "datasets": {
               "type": "array",
               "title": "Datasets to update",
-              "x-i18n-title": { "fr": "Jeux de données à mettre à jour", "en": "Datasets to update" },
+              "x-i18n-title": { "fr": "Jeux de données à mettre à jour" },
               "layout": {
                 "listEditMode": "inline"
               },
@@ -129,12 +116,12 @@
                   "dataset": {
                     "type": "object",
                     "title": "Existing dataset",
-                    "x-i18n-title": { "fr": "Jeu de données existant", "en": "Existing dataset" },
+                    "x-i18n-title": { "fr": "Jeu de données existant" },
                     "properties": {
                       "id": {
                         "type": "string",
                         "title": "Identifier",
-                        "x-i18n-title": { "fr": "Identifiant", "en": "Identifier" }
+                        "x-i18n-title": { "fr": "Identifiant" }
                       },
                       "href": {
                         "type": "string",
@@ -143,7 +130,7 @@
                       "title": {
                         "type": "string",
                         "title": "Title",
-                        "x-i18n-title": { "fr": "Titre", "en": "Title" }
+                        "x-i18n-title": { "fr": "Titre" }
                       }
                     },
                     "layout": {
@@ -158,20 +145,17 @@
                   "sheet": {
                     "type": "object",
                     "title": "Sheet",
-                    "x-i18n-title": {
-                      "fr": "Feuille",
-                      "en": "Sheet"
-                    },
+                    "x-i18n-title": { "fr": "Feuille" },
                     "properties": {
                       "nb": {
                         "type": "integer",
                         "title": "Sheet identifier",
-                        "x-i18n-title": {"fr": "Identifiant de la feuille", "en": "Sheet identifier"}
+                        "x-i18n-title": { "fr": "Identifiant de la feuille" }
                       },
                       "name": {
                         "type": "string",
                         "title": "Sheet name",
-                        "x-i18n-title": {"fr": "Nom de la feuille", "en": "Sheet name"}
+                        "x-i18n-title": { "fr": "Nom de la feuille" }
                       }
                     },
                     "layout": {
@@ -186,7 +170,7 @@
                   "forceUpdate": {
                     "type" : "boolean",
                     "title": "Force schema update",
-                    "x-i18n-title": { "fr": "Forcer la mise à jour du schéma", "en": "Force schema update" }
+                    "x-i18n-title": { "fr": "Forcer la mise à jour du schéma" }
                   }
                 }
               }
@@ -200,31 +184,45 @@
     },
     {
       "title" : "File sheets",
-      "x-i18n-title": { "fr": "Feuilles du fichier", "en": "File sheets" },
+      "x-i18n-title": { "fr": "Feuilles du fichier" },
       "required": [
         "sheets"
       ],
       "layout": {
-        "readOnlyPropertiesMode": "show"
+        "readOnlyPropertiesMode": "show",
+        "children": [
+          {
+            "if": "!parent.data.sheets || parent.data.sheets.length === 0",
+            "children": [
+              {
+                "markdown": "**No sheets detected**",
+                "x-i18n-markdown": {
+                  "fr": "**Aucune feuille détectée**"
+                }
+              }
+            ]
+          },
+          {
+            "if": "parent.data.sheets && parent.data.sheets.length > 0",
+            "children": [
+              {
+                "markdown": "*To update the sheets, for example in the case of a new file, run the **List the available sheets** mode again.*",
+                "x-i18n-markdown": {
+                  "fr": "*Pour remettre à jour les feuilles, en cas de nouveau fichier par exemple, exécutez de nouveau le mode **lister les différentes feuilles**.*"
+                }
+              }
+            ]
+          },
+          "addAllSheets",
+          "tableHeader",
+          "sheets"
+        ]
       },
       "properties": {
-        "note": {
-          "type": "object",
-          "layout": {
-            "slots": {
-              "before": "**No sheets detected**",
-              "x-i18n-before": {
-                "fr": "**Aucune feuille détectée**",
-                "en": "**No sheets detected**"
-              }
-            },
-            "if" : "parent.parent.data.haveList !== true"
-          }
-        },
         "addAllSheets": {
           "type": "boolean",
           "title": "Add all the sheets",
-          "x-i18n-title": { "fr": "Ajouter toutes les feuilles", "en": "Add all the sheets" },
+          "x-i18n-title": { "fr": "Ajouter toutes les feuilles" },
           "layout": {
             "if": "parent.parent.data.datasetMode === 'create'"
           }
@@ -269,19 +267,19 @@
             "add": {
               "type": "string",
               "title": "Add",
-              "x-i18n-title": {"fr": "Ajouter", "en": "add"},
+              "x-i18n-title": { "fr": "Ajouter" },
               "readOnly": true
             },
             "nb": {
               "type": "string",
               "title": "Number",
-              "x-i18n-title": {"fr": "Numéro", "en": "Number"},
+              "x-i18n-title": { "fr": "Numéro" },
               "readOnly": true
             },
             "name": {
               "type": "string",
               "title": "Sheet name",
-              "x-i18n-title": {"fr": "Nom de la feuille", "en": "Sheet name"},
+              "x-i18n-title": { "fr": "Nom de la feuille" },
               "readOnly": true
             },
             "lines": {
@@ -292,13 +290,10 @@
             "titleEditable": {
               "type": "string",
               "title": "Title of the corresponding dataset",
-              "x-i18n-title": {"fr": "Titre du jeu de données correspondant", "en": "Title of the corresponding dataset"},
+              "x-i18n-title": { "fr": "Titre du jeu de données correspondant" },
               "readOnly": true,
               "description": "By default, the dataset title corresponds to the sheet name",
-              "x-i18n-description": {
-                "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille",
-                "en": "By default, the dataset title corresponds to the sheet name"
-              },
+              "x-i18n-description": { "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille" },
               "layout": {
                 "if": "parent.parent.parent.parent.data.datasetMode === 'create'"
               }
@@ -306,13 +301,10 @@
             "titleReadOnly": {
               "type": "string",
               "title": "Title of the corresponding dataset",
-              "x-i18n-title": {"fr": "Titre du jeu de données correspondant", "en": "Title of the corresponding dataset"},
+              "x-i18n-title": { "fr": "Titre du jeu de données correspondant" },
               "readOnly": true,
               "description": "By default, the dataset title corresponds to the sheet name",
-              "x-i18n-description": {
-                "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille",
-                "en": "By default, the dataset title corresponds to the sheet name"
-              },
+              "x-i18n-description": { "fr": "Par défaut, le titre du jeu de données correspond au nom de la feuille" },
               "layout": {
                 "if": "parent.parent.parent.parent.data.datasetMode !== 'create'"
               }
@@ -404,17 +396,17 @@
     },
     {
       "title": "Parameters",
-      "x-i18n-title": { "fr": "Paramètres", "en": "Parameters" },
+      "x-i18n-title": { "fr": "Paramètres" },
       "required": [
         "url"
       ],
       "properties": {
         "url": {
           "title": "Source URL",
-          "x-i18n-title": { "fr": "URL source", "en": "Source URL" },
+          "x-i18n-title": { "fr": "URL source" },
           "type": "string",
           "description": "Supported protocols are HTTP and HTTPS; supported formats are .zip and .xlsx.",
-          "x-i18n-description": { "fr": "Les protocoles supportés sont HTTP et HTTPS, les formats supportés sont .zip et .xlsx.", "en": "Supported protocols are HTTP and HTTPS; supported formats are .zip and .xlsx." }
+          "x-i18n-description": { "fr": "Les protocoles supportés sont HTTP et HTTPS, les formats supportés sont .zip et .xlsx." }
         }
       }
     }
