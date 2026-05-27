@@ -47,9 +47,10 @@ export const run: RunFunction<ProcessingConfig> = async (context) => {
 
     // The lib-common-types signature only allows `dataset` (singular), but the worker's
     // patchConfig is a generic Object.assign on the config — `datasets` is supported at runtime.
-    if (result?.updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: result.updateConfig, sheets: result.sheetsTab } as any)
+    if (result?.updateConfig?.length) await patchConfig({ datasetMode: 'update', datasets: result.updateConfig, sheets: result.sheetsTab, url: processingConfig.url.trim() } as any)
   } else if (processingConfig.datasetMode === 'update') {
     await updateDatasets(context, sheetsList, tmpFile)
+    await patchConfig({ url: processingConfig.url.trim() } as any)
   } else {
     const createConfig: SheetsTab[] = Object.keys(sheetsList).map(idSheet => ({
       add: false,
@@ -60,7 +61,7 @@ export const run: RunFunction<ProcessingConfig> = async (context) => {
       titleReadOnly: ''
     }))
 
-    await patchConfig({ datasetMode: 'create', haveList: true, sheets: createConfig, dataset: {} } as any)
+    await patchConfig({ datasetMode: 'create', haveList: true, sheets: createConfig, dataset: {}, url: processingConfig.url.trim() } as any)
   }
 }
 
@@ -81,7 +82,7 @@ const download = async ({ processingConfig, tmpDir, axios, log } : SpreadsheetPr
   await fs.ensureFile(tmpFile)
   if (shouldBeStopped) return
 
-  const url = new URL(processingConfig.url)
+  const url = new URL(processingConfig.url.trim())
   let filename = decodeURIComponent(path.basename(url.pathname))
   if (shouldBeStopped) return
 
