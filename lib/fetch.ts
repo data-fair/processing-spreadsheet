@@ -29,7 +29,7 @@ export const fetchHTTP = async (processingConfig: SpreadsheetProcessingContext['
   // Retrieving the file name
   if (processingConfig.filename) return processingConfig.filename
   if (res.headers['content-disposition'] && res.headers['content-disposition'].includes('filename=')) {
-    if (res.headers['content-disposition'].match(/filename=(.*);/)) return res.headers['content-disposition'].match(/filename=(.*);/)[1]
+    if (res.headers['content-disposition'].match(/filename="?(.*?)"?;/)) return res.headers['content-disposition'].match(/filename="?(.*?)"?;/)[1]
     if (res.headers['content-disposition'].match(/filename="(.*)"/)) return res.headers['content-disposition'].match(/filename="(.*)"/)[1]
     if (res.headers['content-disposition'].match(/filename=(.*)/)) return res.headers['content-disposition'].match(/filename=(.*)/)[1]
   }
