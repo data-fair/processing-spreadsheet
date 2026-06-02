@@ -44,10 +44,9 @@ Be careful when fixing dependencies. The project uses ExcelJS **version 4.4.0**.
 
 ## Release
 
-Processing plugins are fetched from the npm registry with a filter on keyword "data-fair-processings-plugin". So publishing a plugin is as simple as publishing the npm package:
+Publishing is handled automatically by CI: the plugin is pushed to the data-fair registry (`@data-fair/registry`), not to the public npm registry — there is no manual `npm publish`. A push to `main`/`master` publishes to the staging registry; pushing a `v*` tag publishes to production:
 
 ```bash
-npm version minor
-npm publish
-git push --follow-tags
+npm version minor       # version bump + v* tag
+git push --follow-tags  # CI publishes to the production registry
 ```
