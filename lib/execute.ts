@@ -262,7 +262,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
  * @param tmpFile           Full path of the file to be processed
  * @returns   Returns nothing, used to stop the program
  */
-const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
+const updateDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log } : SpreadsheetProcessingContext, sheetsList: SheetsList, tmpFile: string) => {
   // Narrow the union type to the update-mode branch (caller guarantees datasetMode === 'update').
   const processingConfig = rawConfig as UpdateDatasets
   await log.step('Mise à jour des jeux de données')
@@ -322,7 +322,7 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, dir, log } :
     if (update.forceUpdate) await log.info('Mise à jour forcée du schéma')
 
     // Data update
-    const tmpFileCSV = await createTmpFile(dir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
+    const tmpFileCSV = await createTmpFile(tmpDir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
     if (!tmpFileCSV) return
 
     formData.append('file', await fs.createReadStream(tmpFileCSV), { filename: path.parse(tmpFileCSV).base })

@@ -41,3 +41,13 @@ For this mode, you only need to enter the URL in the Parameters tab.
 ## Warning
 
 Be careful when fixing dependencies. The project uses ExcelJS **version 4.4.0**. The `npm audit fix` command may downgrade this library, which will definitely crash the processing.
+
+## Release
+
+Processing plugins are fetched from the npm registry with a filter on keyword "data-fair-processings-plugin". So publishing a plugin is as simple as publishing the npm package:
+
+```bash
+npm version minor
+npm publish
+git push --follow-tags
+```
