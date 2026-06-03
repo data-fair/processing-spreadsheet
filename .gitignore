@@ -3,4 +3,4 @@ node_modules/
 .type/
 *.tgz
 *.xlsx
-*.test*
+data/
