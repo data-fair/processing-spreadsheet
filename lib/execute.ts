@@ -249,7 +249,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
     await log.info('')
   }
 
-  return { sheetsTab, updateConfig }
+  return { sheetsTab: processingConfig.sheets, updateConfig }
 }
 
 /**
@@ -277,15 +277,23 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
   // SECURITY (normally not necessary): we verify that we have a file dataset
   // ---------------------------------
 
-  // We add size=10000 to ensure that all datasets are retrieved (12 by default)
-  const datasets : { id: string }[] = (await axios.get<{ results: { id: string }[] }>('api/v1/datasets/?size=10000&file=true')).data.results
-  const datasetsIds = new Set<string>(datasets.map(d => d.id))
-
   const datasetsUpdate = []
   // Checking the availability of the sheets and the datasets
   for (const update of processingConfig.datasets) {
     if (!update.dataset.id || !update.dataset.title) {
       await log.warning('Le jeu de données est incomplet (id ou titre manquant)')
+      await log.info('')
+      continue
+    }
+
+    try {
+      await axios.get(`api/v1/datasets/${update.dataset.id}`)
+    } catch (err : any) {
+      if (err.response?.status === 404) {
+        await log.warning('Le jeu de données n\'existe pas. Il a peut-être été supprimé.')
+      } else {
+        await log.warning('L\'identification du jeu de données a échoué.')
+      }
       await log.info('')
       continue
     }
@@ -297,12 +305,6 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
       continue
     }
 
-    // Check if the correct update operation can be performed, to avoid permission errors
-    if (!(datasetsIds.has(update.dataset.id))) {
-      await log.warning(`Le jeu de données ${update.dataset.title} n'est pas de type fichier`)
-      await log.info('')
-      continue
-    }
     datasetsUpdate.push(update)
   }
 
