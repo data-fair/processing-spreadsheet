@@ -186,8 +186,8 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
         title: sheet.titleEditable ?? (sheet.name ?? 'untitled'),
         titleReadOnly: sheet.titleEditable ?? (sheet.name ?? 'untitled')
       }
-      sheetsTab.push(sheet)
     }
+    sheetsTab.push(sheet)
   }
 
   // If there are no sheets to extract, we stop here to simplify the display of logs on the interface.
@@ -249,7 +249,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
     await log.info('')
   }
 
-  return { sheetsTab: processingConfig.sheets, updateConfig }
+  return { sheetsTab, updateConfig }
 }
 
 /**
