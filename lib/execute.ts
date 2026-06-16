@@ -190,24 +190,26 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
     sheetsTab.push(sheet)
   }
 
-  // If there are no sheets to extract, we stop here to simplify the display of logs on the interface.
-  if (sheetsTab.length <= 0) {
-    await log.warning('Pas de feuilles renseignées')
-    return
-  }
-
   const sheetsTabCreate: SheetsTab[] = []
   const updateConfig = []
 
   // SECURITY (normally not necessary) : Checking the availability of the sheets (in the event that the download URL has been changed accidentally)
   for (const sheet of sheetsTab) {
-    const idSheet = sheet.nb
-    const nameSheet = sheet.name
-    if (!(idSheet in sheetsList && sheetsList[idSheet].name === nameSheet)) {
-      await log.warning(`La feuille ${idSheet} - ${nameSheet} n'est pas présente dans les couches disponibles`)
-    } else {
-      sheetsTabCreate.push(sheet)
+    if (sheet.add) {
+      const idSheet = sheet.nb
+      const nameSheet = sheet.name
+      if (!(idSheet in sheetsList && sheetsList[idSheet].name === nameSheet)) {
+        await log.warning(`La feuille ${idSheet} - ${nameSheet} n'est pas présente dans les couches disponibles`)
+      } else {
+        sheetsTabCreate.push(sheet)
+      }
     }
+  }
+
+  // If there are no sheets to extract, we stop here to simplify the display of logs on the interface.
+  if (sheetsTabCreate.length <= 0) {
+    await log.warning('Pas de feuilles renseignées')
+    return
   }
 
   await log.info(`Extraction des feuilles ${sheetsTabCreate.map(sheet => (`${sheet.nb} - ${sheet.name}`)).join(', ')}`)
