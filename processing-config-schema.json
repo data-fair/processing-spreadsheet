@@ -6,8 +6,8 @@
   ],
   "allOf": [
     {
-      "title": "Dataset mode",
-      "x-i18n-title": { "fr": "Liste de jeux de données", "en": "Datasets" },
+      "title": "Datasets",
+      "x-i18n-title": { "fr": "Jeux de données" },
       "default": {
         "datasetMode": "list"
       },
@@ -20,7 +20,7 @@
       },
       "oneOf": [
         {
-          "title": "List sheets",
+          "title": "Sheets list",
           "x-i18n-title": { "fr": "Lister les différentes feuilles", "en": "List the available sheets" },
           "properties": {
             "datasetMode": {
