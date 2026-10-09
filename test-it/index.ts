@@ -19,7 +19,6 @@ describe('Geopackage processing', () => {
 
   it('should display the layers of a xlsx file', async () => {
     const context = testUtils.context({
-      pluginConfig: {},
       processingConfig: {
         datasetMode: 'list',
         url: 'https://www.data.gouv.fr/api/1/datasets/r/aa7a0f1c-89e3-4d40-af94-6f226202ada3',
@@ -32,7 +31,6 @@ describe('Geopackage processing', () => {
 
   it('should run a task with a xlsx file to create an file dataset', async function () {
     const context = testUtils.context({
-      pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
         url: 'https://www.data.gouv.fr/api/1/datasets/r/aa7a0f1c-89e3-4d40-af94-6f226202ada3',
