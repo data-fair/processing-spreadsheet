@@ -42,6 +42,8 @@ For this mode, you only need to enter the URL in the Parameters tab.
 
 Be careful when fixing dependencies. The project uses ExcelJS **version 4.4.0**. The `npm audit fix` command may downgrade this library, which will definitely crash the processing.
 
+ExcelJS 4.4.0 depends on a vulnerable `uuid` version; `package.json` overrides it to `^11.1.1` (ExcelJS only uses `uuid.v4`, which is unchanged).
+
 ## Release
 
 Publishing is handled automatically by CI: the plugin is pushed to the data-fair registry (`@data-fair/registry`), not to the public npm registry — there is no manual `npm publish`. A push to `main`/`master` publishes to the staging registry; pushing a `v*` tag publishes to production:
