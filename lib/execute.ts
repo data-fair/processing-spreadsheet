@@ -11,7 +11,7 @@ import FormData from 'form-data'
 
 import type { SheetsTab, SpreadsheetProcessingContext } from './context.ts'
 import { fetchHTTP } from './fetch.ts'
-import { createTmpFile } from './tmp-file.ts'
+import { createTmpFile, removeSymlinks } from './tmp-file.ts'
 
 /**
  * Allows for a requested program shutdown to be scheduled.
@@ -104,6 +104,7 @@ const download = async ({ processingConfig, tmpDir, axios, log } : SpreadsheetPr
 
     // Unzip
     await util.promisify(execFile)('unzip', ['-j', tmpFile, '-d', `${tmpFile}-dezip`])
+    await removeSymlinks(`${tmpFile}-dezip`)
 
     // We are looking for the .xlsx files contained in the .zip file.
     const filesXlsx: string[] = []

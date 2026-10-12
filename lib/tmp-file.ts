@@ -5,6 +5,22 @@ import Excel from 'exceljs'
 
 import type { SpreadsheetProcessingContext } from './context.ts'
 
+/**
+ * Name of a local file built from a name read in the downloaded file (sheet or layer name):
+ * no directory part, so that it stays in the tmp directory
+ */
+export const safeLocalName = (name: string) => name.replace(/[/\\]/g, '_')
+
+/**
+ * unzip restores the symbolic links of an archive: reading or writing one of
+ * them would reach a file of the worker outside of the tmp directory.
+ */
+export const removeSymlinks = async (dir: string): Promise<void> => {
+  for (const f of await fs.readdir(dir)) {
+    if ((await fs.lstat(path.join(dir, f))).isSymbolicLink()) await fs.remove(path.join(dir, f))
+  }
+}
+
 type NamedWorksheetReader = Excel.stream.xlsx.WorksheetReader & { name: string, destroy: () => void }
 
 /**
@@ -17,7 +33,7 @@ type NamedWorksheetReader = Excel.stream.xlsx.WorksheetReader & { name: string, 
  * @returns   Name of the temporary CSV file created to send
  */
 export const createTmpFile = async (dir : string, tmpFile : string, sheetName : string, log: SpreadsheetProcessingContext['log'], isStopped: () => boolean) => {
-  const tmpFileCSV = path.join(dir, `${sheetName}.csv`)
+  const tmpFileCSV = path.join(dir, `${safeLocalName(sheetName)}.csv`)
 
   if (await fs.pathExists(tmpFileCSV)) return tmpFileCSV
 
