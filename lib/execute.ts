@@ -3,6 +3,7 @@ import type { ProcessingConfig, CreateDatasets, UpdateDatasets, Parameters } fro
 import { formatBytes } from '@data-fair/lib-utils/format/bytes.js'
 
 import util from 'util'
+import { execFile } from 'node:child_process'
 import fs from 'fs-extra'
 import path from 'path'
 import Excel from 'exceljs'
@@ -11,7 +12,6 @@ import FormData from 'form-data'
 import type { SheetsTab, SpreadsheetProcessingContext } from './context.ts'
 import { fetchHTTP } from './fetch.ts'
 import { createTmpFile } from './tmp-file.ts'
-import { runCommand } from './spawn-process.ts'
 
 /**
  * Allows for a requested program shutdown to be scheduled.
@@ -103,7 +103,7 @@ const download = async ({ processingConfig, tmpDir, axios, log } : SpreadsheetPr
     await log.info(`Dézippage du fichier ${filename}`)
 
     // Unzip
-    await runCommand('unzip', ['-j', tmpFile, '-d', `${tmpFile}-dezip`])
+    await util.promisify(execFile)('unzip', ['-j', tmpFile, '-d', `${tmpFile}-dezip`])
 
     // We are looking for the .xlsx files contained in the .zip file.
     const filesXlsx: string[] = []
@@ -181,11 +181,8 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
 
   for (let sheet of processingConfig.sheets as SheetsTab[]) {
     if (sheet.add || processingConfig.addAllSheets) {
-      sheet = {
-        ...sheet,
-        title: sheet.titleEditable ?? (sheet.name ?? 'untitled'),
-        titleReadOnly: sheet.titleEditable ?? (sheet.name ?? 'untitled')
-      }
+      const title = sheet.titleEditable || sheet.name || 'untitled'
+      sheet = { ...sheet, add: true, title, titleReadOnly: title }
     }
     sheetsTab.push(sheet)
   }
@@ -214,15 +211,16 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
 
   await log.info(`Extraction des feuilles ${sheetsTabCreate.map(sheet => (`${sheet.nb} - ${sheet.name}`)).join(', ')}`)
 
+  // On stop, break instead of return so the datasets already created are still saved in the config
   for (const sheet of sheetsTabCreate) {
-    if (shouldBeStopped) return
+    if (shouldBeStopped) break
 
     const idSheet = sheet.nb
 
     await log.info(`Création du jeu de données pour la feuille ${idSheet} - ${sheetsList[idSheet].name}`)
 
     const tmpFileCSV = await createTmpFile(tmpDir, tmpFile, sheetsList[idSheet].name, log, () => shouldBeStopped)
-    if (!tmpFileCSV) return
+    if (!tmpFileCSV) break
 
     const formData = new FormData()
     formData.append('title', sheet.title)
@@ -232,7 +230,7 @@ const createDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
     const contentLength = await getLength()
     await log.info(`Chargement de ${formatBytes(contentLength)}`)
 
-    if (shouldBeStopped) return
+    if (shouldBeStopped) break
 
     const dataset = (await axios({
       method: 'post',
@@ -291,7 +289,7 @@ const updateDatasets = async ({ processingConfig: rawConfig, axios, tmpDir, log 
     try {
       await axios.get(`api/v1/datasets/${update.dataset.id}`)
     } catch (err : any) {
-      if (err.response?.status === 404) {
+      if ((err.status ?? err.response?.status) === 404) {
         await log.warning('Le jeu de données n\'existe pas. Il a peut-être été supprimé.')
       } else {
         await log.warning('L\'identification du jeu de données a échoué.')

@@ -1,3 +1,4 @@
+import { once } from 'node:events'
 import fs from 'fs-extra'
 import path from 'path'
 import Excel from 'exceljs'
@@ -24,7 +25,8 @@ export const createTmpFile = async (dir : string, tmpFile : string, sheetName : 
   if (isStopped()) return
 
   // Creating a stream for large files
-  const workbookReader = new Excel.stream.xlsx.WorkbookReader(tmpFile, {})
+  // styles are needed to recognise date cells, otherwise they come out as serial numbers
+  const workbookReader = new Excel.stream.xlsx.WorkbookReader(tmpFile, { styles: 'cache' })
   const writeStream = fs.createWriteStream(tmpFileCSV, { encoding: 'utf-8' })
 
   // Retrieving the lines from the correct sheet
@@ -51,7 +53,7 @@ export const createTmpFile = async (dir : string, tmpFile : string, sheetName : 
         .map(cell => formatCell(cell))
         .join(',')
 
-      writeStream.write(line + '\n')
+      if (!writeStream.write(line + '\n')) await once(writeStream, 'drain')
     }
 
     // We only want to build one file for one layer, so we stop the program once the task is completed.
@@ -79,12 +81,25 @@ export const createTmpFile = async (dir : string, tmpFile : string, sheetName : 
  * @param cell  Cell value to format
  * @returns   CSV-safe string representation of the cell
  */
-const formatCell = (cell: Excel.CellValue): string => {
+export const formatCell = (cell: Excel.CellValue): string => {
   if (cell === null || cell === undefined) return ''
-  const str = String(cell)
+  let str: string
+  if (cell instanceof Date) {
+    const iso = cell.toISOString()
+    str = iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso
+  } else if (typeof cell === 'object') {
+    // formula, shared formula, rich text, hyperlink or error cells
+    if ('result' in cell || 'formula' in cell || 'sharedFormula' in cell) return formatCell((cell as Excel.CellFormulaValue).result as Excel.CellValue)
+    if ('richText' in cell) str = cell.richText.map(r => r.text).join('')
+    else if ('text' in cell) return formatCell(cell.text as Excel.CellValue)
+    else if ('error' in cell) str = cell.error
+    else str = JSON.stringify(cell)
+  } else {
+    str = String(cell)
+  }
 
   // Escape if the value contains a comma, a quotation mark, or a line break
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+  if (/[,"\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`
   }
   return str

@@ -21,7 +21,7 @@ export const fetchHTTP = async (processingConfig: SpreadsheetProcessingContext['
   try {
     res = await axios.get(processingConfig.url.trim(), opts)
   } catch (err: any) {
-    if (err.response?.status === 404) throw new Error(`File not found: ${processingConfig.url.trim()}`)
+    if ((err.status ?? err.response?.status) === 404) throw new Error(`File not found: ${processingConfig.url.trim()}`)
     throw err
   }
   await pipeline(res.data, fs.createWriteStream(tmpFile))
